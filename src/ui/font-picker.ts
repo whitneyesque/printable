@@ -77,18 +77,20 @@ export function renderFontPicker(container: HTMLElement): void {
     if (isOpen) return;
 
     const rect = trigger.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
     menu.style.top = `${rect.bottom + 4}px`;
     menu.style.left = `${rect.left}px`;
     menu.style.width = `${rect.width}px`;
+    // Cap height to available space below trigger so menu never goes off screen
+    menu.style.maxHeight = `${Math.max(120, spaceBelow)}px`;
 
     const active = menu.querySelector<HTMLElement>('.font-option.active');
     active?.scrollIntoView({ block: 'nearest' });
   });
 
-  // Close on outside click
-  document.addEventListener('click', () => {
-    menu.hidden = true;
-  });
+  // Close on outside click or sidebar scroll (menu is fixed-position so can't follow scroll)
+  document.addEventListener('click', () => { menu.hidden = true; });
+  document.getElementById('controls')?.addEventListener('scroll', () => { menu.hidden = true; }, { passive: true });
 
   function updateActive(): void {
     const current = getTextLayer();

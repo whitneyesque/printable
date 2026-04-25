@@ -77,15 +77,15 @@ export function renderTextPanel(container: HTMLElement): void {
 
   const curveValueDisplay = document.createElement('span');
   curveValueDisplay.className = 'unit-label curve-value';
-  curveValueDisplay.textContent = '0 in';
+  curveValueDisplay.textContent = 'straight';
 
   curveLabelRow.append(curveLabel, curveValueDisplay);
 
   const curveSlider = document.createElement('input');
   curveSlider.type = 'range';
   curveSlider.className = 'curve-slider';
-  curveSlider.min = '-6';
-  curveSlider.max = '6';
+  curveSlider.min = '-10';
+  curveSlider.max = '10';
   curveSlider.step = '0.5';
   curveSlider.value = String(getTextLayer().curve);
 
@@ -163,7 +163,7 @@ export function renderTextPanel(container: HTMLElement): void {
     if (document.activeElement !== curveSlider) {
       curveSlider.value = String(layer.curve);
     }
-    curveValueDisplay.textContent = `${layer.curve > 0 ? '+' : ''}${layer.curve} in`;
+    curveValueDisplay.textContent = layer.curve === 0 ? 'straight' : layer.curve > 0 ? `↑ ${layer.curve}` : `↓ ${Math.abs(layer.curve)}`;
 
     if (document.activeElement !== outlineWidthInput) {
       outlineWidthInput.value = String(layer.outlineWidth);

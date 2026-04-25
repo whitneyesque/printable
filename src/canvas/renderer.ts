@@ -177,9 +177,11 @@ export function renderCanvas(
       } catch { /* not yet in DOM */ }
     }
 
-    // Update the arc path in <defs> based on current layer position and curve
+    // Update the arc path in <defs> based on current layer position and curve.
+    // curve is a signed intensity (±1–10); larger absolute value = tighter arch.
+    // R = 1000 / |curve| SVG units keeps small values gentle and large values dramatic.
     function updateArcPath(layer: TextLayer): void {
-      const R = Math.abs(layer.curve) * UNITS_PER_INCH;
+      const R = 1000 / Math.abs(layer.curve);
       const cx = layer.x;
       const cy = layer.y;
       if (layer.curve > 0) {

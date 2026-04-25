@@ -14,7 +14,7 @@ export type TextLayer = {
   outlineWidth: number;  // inches, 0 = no outline
   outlineColor: string;  // hex
   rotation: number;      // degrees
-  curve: number;         // arc radius in inches, 0 = straight, + = arch up, - = arch down
+  curve: number;         // arch intensity: 0 = straight, + = arch up, - = arch down (larger |value| = tighter arch)
   x: number;
   y: number;
 };

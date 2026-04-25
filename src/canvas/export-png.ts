@@ -151,7 +151,8 @@ function drawCurvedText(
   cx: number,
   cy: number,
 ): void {
-  const R = Math.abs(layer.curve) * (sizePx / layer.sizeIn); // R in pixels
+  // R = 10 inches / |curve| converted to pixels; matches SVG renderer formula (1000 SVG units = 10 in)
+  const R = (10 / Math.abs(layer.curve)) * (sizePx / layer.sizeIn);
   const isUp = layer.curve > 0;
   const chars = [...layer.text];
 

@@ -69,15 +69,20 @@ export function renderFontPicker(container: HTMLElement): void {
     menu.appendChild(opt);
   });
 
-  // Toggle open / close
+  // Toggle open / close — use fixed positioning to escape sidebar overflow clipping
   trigger.addEventListener('click', (e) => {
     e.stopPropagation();
-    menu.hidden = !menu.hidden;
-    if (!menu.hidden) {
-      // Scroll selected option into view
-      const active = menu.querySelector<HTMLElement>('.font-option.active');
-      active?.scrollIntoView({ block: 'nearest' });
-    }
+    const isOpen = !menu.hidden;
+    menu.hidden = isOpen;
+    if (isOpen) return;
+
+    const rect = trigger.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + 4}px`;
+    menu.style.left = `${rect.left}px`;
+    menu.style.width = `${rect.width}px`;
+
+    const active = menu.querySelector<HTMLElement>('.font-option.active');
+    active?.scrollIntoView({ block: 'nearest' });
   });
 
   // Close on outside click

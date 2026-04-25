@@ -321,10 +321,8 @@ body {
 }
 
 .font-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
+  position: fixed;
+  /* top/left/width set by JS to escape sidebar overflow clipping */
   background: #2a2a2a;
   border: 1px solid #444;
   border-radius: 8px;

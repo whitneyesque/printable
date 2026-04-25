@@ -184,17 +184,21 @@ export function renderCanvas(
       const R = 1000 / Math.abs(layer.curve);
       const cx = layer.x;
       const cy = layer.y;
+      // SVG text baseline sits ON the arc; characters extend upward (-y) from the baseline.
+      // Without compensation the text visually floats above layer.y.
+      // Shift the arc down by half the font height so the visual center stays at layer.y.
+      const halfFontH = (layer.sizeIn * UNITS_PER_INCH) / 2;
       if (layer.curve > 0) {
-        // Upward arch: circle center below, arc goes through top
+        // Upward arch: arc top at cy + halfFontH, so text center lands at cy
         arcPathEl.setAttribute(
           'd',
-          `M ${cx - R},${cy + R} A ${R},${R} 0 0,0 ${cx + R},${cy + R}`,
+          `M ${cx - R},${cy + halfFontH + R} A ${R},${R} 0 0,0 ${cx + R},${cy + halfFontH + R}`,
         );
       } else {
-        // Downward arch: circle center above, arc goes through bottom
+        // Downward arch: arc bottom at cy + halfFontH, so text center lands at cy
         arcPathEl.setAttribute(
           'd',
-          `M ${cx - R},${cy - R} A ${R},${R} 0 0,1 ${cx + R},${cy - R}`,
+          `M ${cx - R},${cy + halfFontH - R} A ${R},${R} 0 0,1 ${cx + R},${cy + halfFontH - R}`,
         );
       }
     }

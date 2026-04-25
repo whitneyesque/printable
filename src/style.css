@@ -269,41 +269,98 @@ body {
   cursor: not-allowed;
 }
 
-/* Font picker */
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.curve-value {
+  margin-left: auto;
+}
+
+.curve-slider {
+  width: 100%;
+  accent-color: #fff;
+  cursor: pointer;
+  height: 4px;
+}
+
+/* Font picker dropdown */
 
 .font-picker {
   display: flex;
   flex-direction: column;
 }
 
-.font-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.font-dropdown {
+  position: relative;
 }
 
-.font-btn {
+.font-trigger {
+  width: 100%;
   background: #333;
-  border: 1px solid transparent;
+  border: 1px solid #444;
   border-radius: 6px;
   color: #fff;
-  font-size: 15px;
-  padding: 8px 10px;
+  font-size: 16px;
+  padding: 8px 32px 8px 10px;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.1s;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 0.1s;
 }
 
-.font-btn.active {
+.font-trigger:hover {
+  border-color: #888;
+}
+
+.font-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.font-option {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 15px;
+  padding: 7px 10px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.font-option:hover {
+  background: #3a3a3a;
+  border-color: #555;
+}
+
+.font-option.active {
   border-color: #fff;
   background: #3a3a3a;
-}
-
-.font-btn:hover:not(.active) {
-  border-color: #555;
 }
 
 /* Color picker */
@@ -311,12 +368,54 @@ body {
 .color-picker {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.color-tab-bar {
+  display: flex;
+  gap: 2px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.color-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #888;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.color-tab-btn.active {
+  background: #333;
+  color: #fff;
+}
+
+.color-tab-btn:hover:not(.active) {
+  color: #ccc;
+}
+
+.color-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .color-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
+}
+
+.crayon-grid {
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
 }
 
 .color-swatch {
@@ -333,6 +432,75 @@ body {
 }
 
 .color-swatch:hover:not(.active) {
+  border-color: #888;
+}
+
+.crayon-swatch {
+  border-radius: 4px;
+}
+
+/* Custom color panel */
+
+.custom-panel {
+  gap: 10px;
+}
+
+.custom-preview {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #ff0000;
+}
+
+.rgb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rgb-label {
+  width: 14px;
+  font-size: 11px;
+  color: #888;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.rgb-slider {
+  flex: 1;
+  height: 4px;
+  accent-color: #fff;
+  cursor: pointer;
+}
+
+.rgb-value {
+  width: 28px;
+  text-align: right;
+  font-size: 11px;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.hex-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hex-input {
+  flex: 1;
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-family: monospace;
+  padding: 6px 8px;
+}
+
+.hex-input:focus {
+  outline: none;
   border-color: #888;
 }
 

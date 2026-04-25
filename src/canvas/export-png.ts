@@ -25,6 +25,10 @@ function fontString(layer: TextLayer, sizePx: number): string {
   return parts.join(' ');
 }
 
+function rainbowHsl(i: number, total: number): string {
+  return `hsl(${Math.round((i / Math.max(total - 1, 1)) * 300)}, 100%, 50%)`;
+}
+
 export function isOversized(layer: TextLayer, paper: PaperSize): boolean {
   if (layer.sizeIn >= paper.heightIn) return true;
   const sizePx = layer.sizeIn * DPI;
@@ -74,6 +78,132 @@ function canvasFill(
   return '#ffffff';
 }
 
+function applyOutline(ctx: CanvasRenderingContext2D, layer: TextLayer, sizePx: number): void {
+  if (layer.outlineWidth <= 0) return;
+  // Scale outline proportionally with font size
+  ctx.strokeStyle = layer.outlineColor;
+  ctx.lineWidth = layer.outlineWidth * sizePx / layer.sizeIn;
+  ctx.lineJoin = 'round';
+}
+
+// Straight text: uniform color or gradient, with optional rotation and outline
+function drawStraightText(
+  ctx: CanvasRenderingContext2D,
+  layer: TextLayer,
+  sizePx: number,
+  cx: number,
+  cy: number,
+): void {
+  const metrics = ctx.measureText(layer.text);
+  const textW = metrics.width;
+
+  if (layer.rotation !== 0) {
+    ctx.translate(cx, cy);
+    ctx.rotate((layer.rotation * Math.PI) / 180);
+    ctx.translate(-cx, -cy);
+  }
+
+  if (layer.outlineWidth > 0) {
+    applyOutline(ctx, layer, sizePx);
+    ctx.strokeText(layer.text, cx, cy);
+  }
+  ctx.fillStyle = canvasFill(ctx, layer.color, cx, cy, textW, sizePx);
+  ctx.fillText(layer.text, cx, cy);
+}
+
+// Straight text, per-letter rainbow
+function drawRainbowStraight(
+  ctx: CanvasRenderingContext2D,
+  layer: TextLayer,
+  sizePx: number,
+  cx: number,
+  cy: number,
+): void {
+  const chars = [...layer.text];
+  const widths = chars.map((ch) => ctx.measureText(ch).width);
+  const totalW = widths.reduce((a, b) => a + b, 0);
+
+  ctx.textAlign = 'left';
+  let x = cx - totalW / 2;
+
+  if (layer.rotation !== 0) {
+    ctx.translate(cx, cy);
+    ctx.rotate((layer.rotation * Math.PI) / 180);
+    ctx.translate(-cx, -cy);
+  }
+
+  chars.forEach((ch, i) => {
+    if (layer.outlineWidth > 0) {
+      applyOutline(ctx, layer, sizePx);
+      ctx.strokeText(ch, x, cy);
+    }
+    ctx.fillStyle = rainbowHsl(i, chars.length);
+    ctx.fillText(ch, x, cy);
+    x += widths[i];
+  });
+}
+
+// Curved text: character-by-character arc placement
+function drawCurvedText(
+  ctx: CanvasRenderingContext2D,
+  layer: TextLayer,
+  sizePx: number,
+  cx: number,
+  cy: number,
+): void {
+  const R = Math.abs(layer.curve) * (sizePx / layer.sizeIn); // R in pixels
+  const isUp = layer.curve > 0;
+  const chars = [...layer.text];
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const widths = chars.map((ch) => ctx.measureText(ch).width);
+  const totalW = widths.reduce((a, b) => a + b, 0);
+
+  let xCursor = -totalW / 2;
+
+  chars.forEach((ch, i) => {
+    const charW = widths[i];
+    const charMid = xCursor + charW / 2;
+    const angle = charMid / R; // arc angle from center (radians)
+
+    let charX: number, charY: number, charRot: number;
+    if (isUp) {
+      // Circle center at (cx, cy + R) — arc goes over the top
+      charX = cx + R * Math.sin(angle);
+      charY = cy + R - R * Math.cos(angle);
+      charRot = angle;
+    } else {
+      // Circle center at (cx, cy - R) — arc goes under the bottom
+      charX = cx + R * Math.sin(angle);
+      charY = cy - R + R * Math.cos(angle);
+      charRot = -angle;
+    }
+
+    ctx.save();
+    ctx.translate(charX, charY);
+    ctx.rotate(charRot);
+
+    if (layer.outlineWidth > 0) {
+      applyOutline(ctx, layer, sizePx);
+      ctx.strokeText(ch, 0, 0);
+    }
+
+    if (layer.color.kind === 'per-letter') {
+      ctx.fillStyle = rainbowHsl(i, chars.length);
+    } else {
+      // Solid fill per char; gradients approximate to solid center color
+      const fill = canvasFill(ctx, layer.color, 0, 0, charW, sizePx);
+      ctx.fillStyle = typeof fill === 'string' ? fill : '#ffffff';
+    }
+    ctx.fillText(ch, 0, 0);
+
+    ctx.restore();
+    xCursor += charW;
+  });
+}
+
 function drawText(
   ctx: CanvasRenderingContext2D,
   canvasW: number,
@@ -83,40 +213,25 @@ function drawText(
   mirror: boolean,
 ): void {
   ctx.font = fontString(layer, sizePx);
-  const metrics = ctx.measureText(layer.text);
-  const textW = metrics.width;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
   const cx = canvasW / 2;
   const cy = canvasH / 2;
 
   ctx.save();
-
-  // Mirror flips horizontally around center
   if (mirror) {
     ctx.translate(canvasW, 0);
     ctx.scale(-1, 1);
   }
 
-  // Rotation around the text center point
-  if (layer.rotation !== 0) {
-    ctx.translate(cx, cy);
-    ctx.rotate((layer.rotation * Math.PI) / 180);
-    ctx.translate(-cx, -cy);
+  if (layer.curve !== 0) {
+    drawCurvedText(ctx, layer, sizePx, cx, cy);
+  } else if (layer.color.kind === 'per-letter') {
+    drawRainbowStraight(ctx, layer, sizePx, cx, cy);
+  } else {
+    drawStraightText(ctx, layer, sizePx, cx, cy);
   }
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // Outline drawn first so fill sits on top
-  if (layer.outlineWidth > 0) {
-    const outlinePx = layer.outlineWidth * (sizePx / layer.sizeIn);
-    ctx.strokeStyle = layer.outlineColor;
-    ctx.lineWidth = outlinePx;
-    ctx.lineJoin = 'round';
-    ctx.strokeText(layer.text, cx, cy);
-  }
-
-  ctx.fillStyle = canvasFill(ctx, layer.color, cx, cy, textW, sizePx);
-  ctx.fillText(layer.text, cx, cy);
 
   ctx.restore();
 }

@@ -18,7 +18,7 @@ export function renderTextPanel(container: HTMLElement): void {
     updateTextLayer({ text: textInput.value });
   });
 
-  // Size input
+  // Size row
   const sizeRow = document.createElement('div');
   sizeRow.className = 'panel-row';
 
@@ -64,26 +64,62 @@ export function renderTextPanel(container: HTMLElement): void {
 
   styleRow.append(boldBtn, italicBtn);
 
-  // Outline
-  const outlineRow = document.createElement('div');
-  outlineRow.className = 'panel-row';
+  // Curve row
+  const curveSection = document.createElement('div');
+  curveSection.className = 'panel-section';
 
-  const outlineLabel = document.createElement('label');
+  const curveLabelRow = document.createElement('div');
+  curveLabelRow.className = 'panel-row';
+
+  const curveLabel = document.createElement('span');
+  curveLabel.textContent = 'Curve';
+  curveLabel.className = 'panel-label';
+
+  const curveValueDisplay = document.createElement('span');
+  curveValueDisplay.className = 'unit-label curve-value';
+  curveValueDisplay.textContent = '0 in';
+
+  curveLabelRow.append(curveLabel, curveValueDisplay);
+
+  const curveSlider = document.createElement('input');
+  curveSlider.type = 'range';
+  curveSlider.className = 'curve-slider';
+  curveSlider.min = '-6';
+  curveSlider.max = '6';
+  curveSlider.step = '0.5';
+  curveSlider.value = String(getTextLayer().curve);
+
+  curveSlider.addEventListener('input', () => {
+    const val = parseFloat(curveSlider.value);
+    updateTextLayer({ curve: val });
+  });
+
+  curveSection.append(curveLabelRow, curveSlider);
+
+  // Outline row
+  const outlineSection = document.createElement('div');
+  outlineSection.className = 'panel-section';
+
+  const outlineLabelRow = document.createElement('div');
+  outlineLabelRow.className = 'panel-row';
+
+  const outlineLabel = document.createElement('span');
   outlineLabel.textContent = 'Outline';
   outlineLabel.className = 'panel-label';
 
-  const outlineInput = document.createElement('input');
-  outlineInput.type = 'number';
-  outlineInput.className = 'panel-input size-input';
-  outlineInput.min = '0';
-  outlineInput.max = '0.25';
-  outlineInput.step = '0.01';
-  outlineInput.value = String(getTextLayer().outlineWidth);
-  outlineInput.title = 'Outline width in inches (0 = none)';
-  outlineInput.addEventListener('input', () => {
-    const val = parseFloat(outlineInput.value);
-    if (isFinite(val) && val >= 0) updateTextLayer({ outlineWidth: val });
-  });
+  outlineLabelRow.appendChild(outlineLabel);
+
+  const outlineInputRow = document.createElement('div');
+  outlineInputRow.className = 'panel-row';
+
+  const outlineWidthInput = document.createElement('input');
+  outlineWidthInput.type = 'number';
+  outlineWidthInput.className = 'panel-input size-input';
+  outlineWidthInput.min = '0';
+  outlineWidthInput.max = '0.5';
+  outlineWidthInput.step = '0.02';
+  outlineWidthInput.value = String(getTextLayer().outlineWidth);
+  outlineWidthInput.title = 'Outline width in inches';
 
   const outlineUnit = document.createElement('span');
   outlineUnit.textContent = 'in';
@@ -94,13 +130,20 @@ export function renderTextPanel(container: HTMLElement): void {
   outlineColorInput.className = 'outline-color-input';
   outlineColorInput.value = getTextLayer().outlineColor;
   outlineColorInput.title = 'Outline color';
+
+  outlineWidthInput.addEventListener('input', () => {
+    const val = parseFloat(outlineWidthInput.value);
+    if (isFinite(val) && val >= 0) updateTextLayer({ outlineWidth: val });
+  });
+
   outlineColorInput.addEventListener('input', () => {
     updateTextLayer({ outlineColor: outlineColorInput.value });
   });
 
-  outlineRow.append(outlineLabel, outlineInput, outlineUnit, outlineColorInput);
+  outlineInputRow.append(outlineWidthInput, outlineUnit, outlineColorInput);
+  outlineSection.append(outlineLabelRow, outlineInputRow);
 
-  wrapper.append(textLabel, textInput, sizeRow, styleRow, outlineRow);
+  wrapper.append(textLabel, textInput, sizeRow, styleRow, curveSection, outlineSection);
   container.appendChild(wrapper);
 
   function syncControls(): void {
@@ -111,15 +154,23 @@ export function renderTextPanel(container: HTMLElement): void {
     if (document.activeElement !== sizeInput) {
       sizeInput.value = String(Math.round(layer.sizeIn * 100) / 100);
     }
-    if (document.activeElement !== outlineInput) {
-      outlineInput.value = String(Math.round(layer.outlineWidth * 100) / 100);
-    }
-    outlineColorInput.value = layer.outlineColor;
 
     boldBtn.disabled = !font.hasBold;
     boldBtn.classList.toggle('active', layer.bold);
     italicBtn.disabled = !font.hasItalic;
     italicBtn.classList.toggle('active', layer.italic);
+
+    if (document.activeElement !== curveSlider) {
+      curveSlider.value = String(layer.curve);
+    }
+    curveValueDisplay.textContent = `${layer.curve > 0 ? '+' : ''}${layer.curve} in`;
+
+    if (document.activeElement !== outlineWidthInput) {
+      outlineWidthInput.value = String(layer.outlineWidth);
+    }
+    if (document.activeElement !== outlineColorInput) {
+      outlineColorInput.value = layer.outlineColor;
+    }
   }
 
   onLayerChange(syncControls);

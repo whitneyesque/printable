@@ -11,10 +11,15 @@ import { setupDrag, setupResizeHandle, setupRotationHandle } from './interaction
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const UNITS_PER_INCH = 100;
 const GRADIENT_ID = 'text-fill';
+const ARC_PATH_ID = 'text-arc';
 const ROT_HANDLE_DIST = 60; // SVG units above text center
 
 let unsubscribeLayer: (() => void) | null = null;
 let unsubscribePaper: (() => void) | null = null;
+
+function rainbowHsl(i: number, total: number): string {
+  return `hsl(${Math.round((i / Math.max(total - 1, 1)) * 300)}, 100%, 50%)`;
+}
 
 export function renderCanvas(
   container: HTMLElement,
@@ -43,9 +48,14 @@ export function renderCanvas(
     const viewBoxH = (naturalHeight / naturalPixelsPerInch) * UNITS_PER_INCH;
     svg.setAttribute('viewBox', `0 0 ${viewBoxW} ${viewBoxH}`);
 
-    // Defs for gradient fills
     const defs = document.createElementNS(SVG_NS, 'defs');
     svg.appendChild(defs);
+
+    // Arc path for curved text
+    const arcPathEl = document.createElementNS(SVG_NS, 'path');
+    arcPathEl.setAttribute('id', ARC_PATH_ID);
+    defs.appendChild(arcPathEl);
+
     let gradientEl: SVGLinearGradientElement | SVGRadialGradientElement | null = null;
 
     const imgEl = document.createElementNS(SVG_NS, 'image');
@@ -77,10 +87,8 @@ export function renderCanvas(
     updatePaperRect();
     unsubscribePaper = onPaperSizeChange(() => updatePaperRect());
 
-    // Text element
     const textEl = document.createElementNS(SVG_NS, 'text');
     textEl.setAttribute('text-anchor', 'middle');
-    textEl.setAttribute('dominant-baseline', 'central');
     svg.appendChild(textEl);
 
     // Resize handle (bottom-right of text bbox)
@@ -156,33 +164,51 @@ export function renderCanvas(
         const cy = bbox.y + bbox.height / 2;
         if (color.kind === 'linear-gradient') {
           const rad = (color.angle * Math.PI) / 180;
-          const dx = Math.sin(rad) * (bbox.width / 2);
-          const dy = -Math.cos(rad) * (bbox.height / 2);
-          gradientEl.setAttribute('x1', String(cx - dx));
-          gradientEl.setAttribute('y1', String(cy - dy));
-          gradientEl.setAttribute('x2', String(cx + dx));
-          gradientEl.setAttribute('y2', String(cy + dy));
+          gradientEl.setAttribute('x1', String(cx - Math.sin(rad) * bbox.width / 2));
+          gradientEl.setAttribute('y1', String(cy + Math.cos(rad) * bbox.height / 2));
+          gradientEl.setAttribute('x2', String(cx + Math.sin(rad) * bbox.width / 2));
+          gradientEl.setAttribute('y2', String(cy - Math.cos(rad) * bbox.height / 2));
         } else if (color.kind === 'radial-gradient') {
           const r = Math.max(bbox.width, bbox.height) / 2;
           gradientEl.setAttribute('cx', String(cx));
           gradientEl.setAttribute('cy', String(cy));
           gradientEl.setAttribute('r', String(r));
         }
-      } catch {
-        // not yet in DOM
+      } catch { /* not yet in DOM */ }
+    }
+
+    // Update the arc path in <defs> based on current layer position and curve
+    function updateArcPath(layer: TextLayer): void {
+      const R = Math.abs(layer.curve) * UNITS_PER_INCH;
+      const cx = layer.x;
+      const cy = layer.y;
+      if (layer.curve > 0) {
+        // Upward arch: circle center below, arc goes through top
+        arcPathEl.setAttribute(
+          'd',
+          `M ${cx - R},${cy + R} A ${R},${R} 0 0,0 ${cx + R},${cy + R}`,
+        );
+      } else {
+        // Downward arch: circle center above, arc goes through bottom
+        arcPathEl.setAttribute(
+          'd',
+          `M ${cx - R},${cy - R} A ${R},${R} 0 0,1 ${cx + R},${cy - R}`,
+        );
       }
     }
 
+    // Build the text element's content and fill for the current layer
     function applyLayer(layer: TextLayer): void {
       const font = FONTS.find((f) => f.id === layer.fontId) ?? FONTS[0];
+
+      // Font attributes
       textEl.setAttribute('font-family', `'${font.family}', sans-serif`);
       textEl.setAttribute('font-size', String(layer.sizeIn * UNITS_PER_INCH));
       textEl.setAttribute('font-weight', layer.bold && font.hasBold ? 'bold' : 'normal');
       textEl.setAttribute('font-style', layer.italic && font.hasItalic ? 'italic' : 'normal');
-      textEl.textContent = layer.text;
 
-      // Rotation transform around the text's own center point
-      if (layer.rotation !== 0) {
+      // Rotation (only applied when not curved — curve has its own path orientation)
+      if (layer.curve === 0 && layer.rotation !== 0) {
         textEl.setAttribute('transform', `rotate(${layer.rotation}, ${layer.x}, ${layer.y})`);
       } else {
         textEl.removeAttribute('transform');
@@ -200,24 +226,86 @@ export function renderCanvas(
         textEl.removeAttribute('paint-order');
       }
 
-      // Color fill
+      // Gradient rebuild
       gradientEl?.remove();
       gradientEl = null;
 
       const { color } = layer;
+      const isCurved = layer.curve !== 0;
+      const isRainbow = color.kind === 'per-letter';
+
+      // Clear content — we'll repopulate based on mode
+      textEl.innerHTML = '';
+
+      if (isCurved) {
+        // Update the arc path
+        updateArcPath(layer);
+
+        // Positioning via textPath, not x/y
+        textEl.removeAttribute('x');
+        textEl.removeAttribute('y');
+        textEl.removeAttribute('dominant-baseline');
+
+        if (isRainbow) {
+          // Each character gets its own tspan inside one textPath
+          const tp = document.createElementNS(SVG_NS, 'textPath');
+          tp.setAttribute('href', `#${ARC_PATH_ID}`);
+          tp.setAttribute('startOffset', '50%');
+          const chars = [...layer.text];
+          chars.forEach((ch, i) => {
+            const ts = document.createElementNS(SVG_NS, 'tspan');
+            ts.textContent = ch;
+            ts.setAttribute('fill', rainbowHsl(i, chars.length));
+            tp.appendChild(ts);
+          });
+          textEl.removeAttribute('fill');
+          textEl.appendChild(tp);
+        } else {
+          const tp = document.createElementNS(SVG_NS, 'textPath');
+          tp.setAttribute('href', `#${ARC_PATH_ID}`);
+          tp.setAttribute('startOffset', '50%');
+          tp.textContent = layer.text;
+          textEl.appendChild(tp);
+          // Apply fill to text element
+          applyFill(color);
+          requestAnimationFrame(() => positionGradient(color));
+        }
+      } else {
+        // Straight text — position via x/y
+        textEl.setAttribute('x', String(layer.x));
+        textEl.setAttribute('y', String(layer.y));
+        textEl.setAttribute('dominant-baseline', 'central');
+
+        if (isRainbow) {
+          const chars = [...layer.text];
+          chars.forEach((ch, i) => {
+            const ts = document.createElementNS(SVG_NS, 'tspan');
+            ts.textContent = ch;
+            ts.setAttribute('fill', rainbowHsl(i, chars.length));
+            textEl.appendChild(ts);
+          });
+          textEl.removeAttribute('fill');
+        } else {
+          textEl.textContent = layer.text;
+          applyFill(color);
+          requestAnimationFrame(() => positionGradient(color));
+        }
+      }
+    }
+
+    function applyFill(color: PaletteColor): void {
       if (color.kind === 'solid') {
         textEl.setAttribute('fill', color.hex);
       } else if (color.kind === 'linear-gradient' || color.kind === 'radial-gradient') {
         gradientEl = buildGradient(color);
         defs.appendChild(gradientEl);
         textEl.setAttribute('fill', `url(#${GRADIENT_ID})`);
-        requestAnimationFrame(() => positionGradient(color));
       } else {
         textEl.setAttribute('fill', '#ffffff');
       }
     }
 
-    // Center text on paper if not yet positioned for this garment
+    // Initial position
     const initialLayer = getTextLayer();
     if (initialLayer.x === 0 && initialLayer.y === 0) {
       const paper = PAPER_SIZES[getPaperSizeIndex()];
@@ -231,8 +319,6 @@ export function renderCanvas(
 
     const currentLayer = getTextLayer();
     applyLayer(currentLayer);
-    textEl.setAttribute('x', String(currentLayer.x));
-    textEl.setAttribute('y', String(currentLayer.y));
     requestAnimationFrame(() => repositionHandles(getTextLayer()));
 
     setupDrag(
@@ -259,8 +345,6 @@ export function renderCanvas(
 
     unsubscribeLayer = onLayerChange((updated) => {
       applyLayer(updated);
-      textEl.setAttribute('x', String(updated.x));
-      textEl.setAttribute('y', String(updated.y));
       requestAnimationFrame(() => {
         repositionHandles(updated);
         positionGradient(updated.color);

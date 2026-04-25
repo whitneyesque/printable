@@ -14,6 +14,7 @@ export type TextLayer = {
   outlineWidth: number;  // inches, 0 = no outline
   outlineColor: string;  // hex
   rotation: number;      // degrees
+  curve: number;         // arc radius in inches, 0 = straight, + = arch up, - = arch down
   x: number;
   y: number;
 };
@@ -55,6 +56,7 @@ let layer: TextLayer = {
   outlineWidth: 0,
   outlineColor: '#000000',
   rotation: 0,
+  curve: 0,
   x: 0,
   y: 0,
   ...loadSavedLayer(),

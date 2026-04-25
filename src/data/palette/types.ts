@@ -11,4 +11,4 @@ export type PaletteColor =
       stops: { offset: number; hex: string }[];
       name: string;
     }
-  | { kind: 'per-letter' };
+  | { kind: 'per-letter'; name: string };

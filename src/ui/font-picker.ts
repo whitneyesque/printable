@@ -38,34 +38,67 @@ export function renderFontPicker(container: HTMLElement): void {
   heading.textContent = 'Font';
   wrapper.appendChild(heading);
 
-  const grid = document.createElement('div');
-  grid.className = 'font-grid';
+  // Dropdown trigger
+  const dropdown = document.createElement('div');
+  dropdown.className = 'font-dropdown';
+
+  const trigger = document.createElement('button');
+  trigger.className = 'font-trigger';
+  dropdown.appendChild(trigger);
+
+  // Scrollable options list
+  const menu = document.createElement('div');
+  menu.className = 'font-menu';
+  menu.hidden = true;
+  dropdown.appendChild(menu);
 
   FONTS.forEach((font) => {
-    const btn = document.createElement('button');
-    btn.className = 'font-btn';
-    btn.dataset['fontId'] = font.id;
-    btn.textContent = font.displayName;
-    btn.style.fontFamily = `'${font.family}', sans-serif`;
-    btn.addEventListener('click', () => {
+    const opt = document.createElement('button');
+    opt.className = 'font-option';
+    opt.dataset['fontId'] = font.id;
+    opt.textContent = font.displayName;
+    opt.style.fontFamily = `'${font.family}', sans-serif`;
+    opt.addEventListener('click', () => {
       const current = getTextLayer();
       const patch: Parameters<typeof updateTextLayer>[0] = { fontId: font.id };
       if (current.bold && !font.hasBold) patch.bold = false;
       if (current.italic && !font.hasItalic) patch.italic = false;
       updateTextLayer(patch);
+      menu.hidden = true;
     });
-    grid.appendChild(btn);
+    menu.appendChild(opt);
+  });
+
+  // Toggle open / close
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+    if (!menu.hidden) {
+      // Scroll selected option into view
+      const active = menu.querySelector<HTMLElement>('.font-option.active');
+      active?.scrollIntoView({ block: 'nearest' });
+    }
+  });
+
+  // Close on outside click
+  document.addEventListener('click', () => {
+    menu.hidden = true;
   });
 
   function updateActive(): void {
     const current = getTextLayer();
-    grid.querySelectorAll<HTMLButtonElement>('.font-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset['fontId'] === current.fontId);
+    const font = FONTS.find((f) => f.id === current.fontId) ?? FONTS[0];
+
+    trigger.textContent = font.displayName;
+    trigger.style.fontFamily = `'${font.family}', sans-serif`;
+
+    menu.querySelectorAll<HTMLButtonElement>('.font-option').forEach((opt) => {
+      opt.classList.toggle('active', opt.dataset['fontId'] === current.fontId);
     });
   }
 
   onLayerChange(updateActive);
-  wrapper.appendChild(grid);
+  wrapper.appendChild(dropdown);
   container.appendChild(wrapper);
   updateActive();
 }

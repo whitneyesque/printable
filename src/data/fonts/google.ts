@@ -1,1 +1,67 @@
-export {};
+import type { Font } from './types';
+
+export const GOOGLE_FONTS: Font[] = [
+  {
+    id: 'graduate',
+    family: 'Graduate',
+    displayName: 'Graduate',
+    source: 'google',
+    category: 'varsity',
+    hasBold: false,
+    hasItalic: false,
+  },
+  {
+    id: 'fredoka-one',
+    family: 'Fredoka One',
+    displayName: 'Fredoka One',
+    source: 'google',
+    category: 'playful',
+    hasBold: false,
+    hasItalic: false,
+  },
+  {
+    id: 'dancing-script',
+    family: 'Dancing Script',
+    displayName: 'Dancing Script',
+    source: 'google',
+    category: 'script',
+    hasBold: true,
+    hasItalic: false,
+  },
+  {
+    id: 'righteous',
+    family: 'Righteous',
+    displayName: 'Righteous',
+    source: 'google',
+    category: 'retro',
+    hasBold: false,
+    hasItalic: false,
+  },
+  {
+    id: 'nunito',
+    family: 'Nunito',
+    displayName: 'Nunito',
+    source: 'google',
+    category: 'soft',
+    hasBold: true,
+    hasItalic: true,
+  },
+  {
+    id: 'anton',
+    family: 'Anton',
+    displayName: 'Anton',
+    source: 'google',
+    category: 'bold-display',
+    hasBold: false,
+    hasItalic: false,
+  },
+  {
+    id: 'playfair-display',
+    family: 'Playfair Display',
+    displayName: 'Playfair Display',
+    source: 'google',
+    category: 'vintage-serif',
+    hasBold: true,
+    hasItalic: true,
+  },
+];

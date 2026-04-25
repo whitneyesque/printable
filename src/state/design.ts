@@ -11,6 +11,9 @@ export type TextLayer = {
   bold: boolean;
   italic: boolean;
   color: PaletteColor;
+  outlineWidth: number;  // inches, 0 = no outline
+  outlineColor: string;  // hex
+  rotation: number;      // degrees
   x: number;
   y: number;
 };
@@ -49,6 +52,9 @@ let layer: TextLayer = {
   bold: false,
   italic: false,
   color: SOLIDS[0],
+  outlineWidth: 0,
+  outlineColor: '#000000',
+  rotation: 0,
   x: 0,
   y: 0,
   ...loadSavedLayer(),

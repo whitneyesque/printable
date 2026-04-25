@@ -13,9 +13,23 @@ function loadGoogleFont(fontId: string): void {
   document.head.appendChild(link);
 }
 
+function loadLocalFont(fontId: string): void {
+  const font = FONTS.find((f) => f.id === fontId);
+  if (!font || font.source !== 'local' || !font.file) return;
+  const styleId = `local-font-${fontId}`;
+  if (document.getElementById(styleId)) return;
+  const style = document.createElement('style');
+  style.id = styleId;
+  style.textContent = `@font-face { font-family: '${font.family}'; src: url('${import.meta.env.BASE_URL}${font.file}'); font-display: swap; }`;
+  document.head.appendChild(style);
+}
+
 export function renderFontPicker(container: HTMLElement): void {
-  // Load all fonts upfront for previews (lazy loading is M6)
-  FONTS.forEach((f) => loadGoogleFont(f.id));
+  // Load all fonts upfront so preview buttons render in their own face
+  FONTS.forEach((f) => {
+    if (f.source === 'google') loadGoogleFont(f.id);
+    else loadLocalFont(f.id);
+  });
 
   const wrapper = document.createElement('div');
   wrapper.className = 'font-picker';

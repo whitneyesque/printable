@@ -46,6 +46,48 @@ export function setupDrag(
   });
 }
 
+export function setupRotationHandle(
+  svg: SVGSVGElement,
+  handle: SVGCircleElement,
+  getCenter: () => { x: number; y: number },
+  getRotation: () => number,
+  setRotation: (deg: number) => void,
+): void {
+  handle.style.cursor = 'grab';
+
+  handle.addEventListener('pointerdown', (e: Event) => {
+    const pe = e as PointerEvent;
+    pe.stopPropagation();
+    handle.setPointerCapture(pe.pointerId);
+
+    const center = getCenter();
+    const startPt = toSVGPoint(svg, pe);
+    // angle measured clockwise from "up" — matches CSS/SVG rotate convention
+    const startAngle = (Math.atan2(startPt.x - center.x, -(startPt.y - center.y)) * 180) / Math.PI;
+    const startRotation = getRotation();
+    let active = true;
+
+    const onMove = (me: Event) => {
+      if (!active) return;
+      const mpe = me as PointerEvent;
+      const pt = toSVGPoint(svg, mpe);
+      const angle = (Math.atan2(pt.x - center.x, -(pt.y - center.y)) * 180) / Math.PI;
+      setRotation(startRotation + angle - startAngle);
+    };
+
+    const onUp = () => {
+      active = false;
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+    };
+
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
+  });
+}
+
 export function setupResizeHandle(
   svg: SVGSVGElement,
   handle: SVGElement,

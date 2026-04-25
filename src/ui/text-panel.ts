@@ -64,7 +64,43 @@ export function renderTextPanel(container: HTMLElement): void {
 
   styleRow.append(boldBtn, italicBtn);
 
-  wrapper.append(textLabel, textInput, sizeRow, styleRow);
+  // Outline
+  const outlineRow = document.createElement('div');
+  outlineRow.className = 'panel-row';
+
+  const outlineLabel = document.createElement('label');
+  outlineLabel.textContent = 'Outline';
+  outlineLabel.className = 'panel-label';
+
+  const outlineInput = document.createElement('input');
+  outlineInput.type = 'number';
+  outlineInput.className = 'panel-input size-input';
+  outlineInput.min = '0';
+  outlineInput.max = '0.25';
+  outlineInput.step = '0.01';
+  outlineInput.value = String(getTextLayer().outlineWidth);
+  outlineInput.title = 'Outline width in inches (0 = none)';
+  outlineInput.addEventListener('input', () => {
+    const val = parseFloat(outlineInput.value);
+    if (isFinite(val) && val >= 0) updateTextLayer({ outlineWidth: val });
+  });
+
+  const outlineUnit = document.createElement('span');
+  outlineUnit.textContent = 'in';
+  outlineUnit.className = 'unit-label';
+
+  const outlineColorInput = document.createElement('input');
+  outlineColorInput.type = 'color';
+  outlineColorInput.className = 'outline-color-input';
+  outlineColorInput.value = getTextLayer().outlineColor;
+  outlineColorInput.title = 'Outline color';
+  outlineColorInput.addEventListener('input', () => {
+    updateTextLayer({ outlineColor: outlineColorInput.value });
+  });
+
+  outlineRow.append(outlineLabel, outlineInput, outlineUnit, outlineColorInput);
+
+  wrapper.append(textLabel, textInput, sizeRow, styleRow, outlineRow);
   container.appendChild(wrapper);
 
   function syncControls(): void {
@@ -75,6 +111,10 @@ export function renderTextPanel(container: HTMLElement): void {
     if (document.activeElement !== sizeInput) {
       sizeInput.value = String(Math.round(layer.sizeIn * 100) / 100);
     }
+    if (document.activeElement !== outlineInput) {
+      outlineInput.value = String(Math.round(layer.outlineWidth * 100) / 100);
+    }
+    outlineColorInput.value = layer.outlineColor;
 
     boldBtn.disabled = !font.hasBold;
     boldBtn.classList.toggle('active', layer.bold);

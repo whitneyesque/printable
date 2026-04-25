@@ -88,19 +88,37 @@ function drawText(
   const cx = canvasW / 2;
   const cy = canvasH / 2;
 
-  ctx.fillStyle = canvasFill(ctx, layer.color, cx, cy, textW, sizePx);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+  ctx.save();
 
+  // Mirror flips horizontally around center
   if (mirror) {
-    ctx.save();
     ctx.translate(canvasW, 0);
     ctx.scale(-1, 1);
   }
 
+  // Rotation around the text center point
+  if (layer.rotation !== 0) {
+    ctx.translate(cx, cy);
+    ctx.rotate((layer.rotation * Math.PI) / 180);
+    ctx.translate(-cx, -cy);
+  }
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Outline drawn first so fill sits on top
+  if (layer.outlineWidth > 0) {
+    const outlinePx = layer.outlineWidth * (sizePx / layer.sizeIn);
+    ctx.strokeStyle = layer.outlineColor;
+    ctx.lineWidth = outlinePx;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(layer.text, cx, cy);
+  }
+
+  ctx.fillStyle = canvasFill(ctx, layer.color, cx, cy, textW, sizePx);
   ctx.fillText(layer.text, cx, cy);
 
-  if (mirror) ctx.restore();
+  ctx.restore();
 }
 
 // Renders a scaled-down checkerboard preview into the given canvas element.

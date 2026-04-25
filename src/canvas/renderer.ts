@@ -6,11 +6,12 @@ import type { PaletteColor } from '../data/palette/types';
 import { getTextLayer, updateTextLayer, onLayerChange, getPaperSizeIndex, onPaperSizeChange } from '../state/design';
 import { FONTS } from '../data/fonts/index';
 import { PAPER_SIZES } from './export-png';
-import { setupDrag, setupResizeHandle } from './interactions';
+import { setupDrag, setupResizeHandle, setupRotationHandle } from './interactions';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const UNITS_PER_INCH = 100;
 const GRADIENT_ID = 'text-fill';
+const ROT_HANDLE_DIST = 60; // SVG units above text center
 
 let unsubscribeLayer: (() => void) | null = null;
 let unsubscribePaper: (() => void) | null = null;
@@ -55,7 +56,7 @@ export function renderCanvas(
     imgEl.setAttribute('height', String(viewBoxH));
     svg.appendChild(imgEl);
 
-    // Paper boundary (black dashed) — centered horizontally, anchored at 15% from top
+    // Paper boundary (black dashed)
     const paperRect = document.createElementNS(SVG_NS, 'rect');
     paperRect.setAttribute('fill', 'none');
     paperRect.setAttribute('stroke', '#000');
@@ -82,26 +83,52 @@ export function renderCanvas(
     textEl.setAttribute('dominant-baseline', 'central');
     svg.appendChild(textEl);
 
-    // Resize handle circle
-    const handle = document.createElementNS(SVG_NS, 'circle');
-    handle.setAttribute('r', '8');
-    handle.setAttribute('fill', 'white');
-    handle.setAttribute('stroke', '#444');
-    handle.setAttribute('stroke-width', '1.5');
-    handle.setAttribute('vector-effect', 'non-scaling-stroke');
-    svg.appendChild(handle);
+    // Resize handle (bottom-right of text bbox)
+    const resizeHandle = document.createElementNS(SVG_NS, 'circle');
+    resizeHandle.setAttribute('r', '8');
+    resizeHandle.setAttribute('fill', 'white');
+    resizeHandle.setAttribute('stroke', '#444');
+    resizeHandle.setAttribute('stroke-width', '1.5');
+    resizeHandle.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(resizeHandle);
 
-    function repositionHandle(): void {
+    // Rotation handle — dashed line + circle above text center
+    const rotLine = document.createElementNS(SVG_NS, 'line');
+    rotLine.setAttribute('stroke', '#fff');
+    rotLine.setAttribute('stroke-width', '1.5');
+    rotLine.setAttribute('stroke-dasharray', '4 3');
+    rotLine.setAttribute('vector-effect', 'non-scaling-stroke');
+    rotLine.setAttribute('pointer-events', 'none');
+    svg.appendChild(rotLine);
+
+    const rotHandle = document.createElementNS(SVG_NS, 'circle');
+    rotHandle.setAttribute('r', '8');
+    rotHandle.setAttribute('fill', 'white');
+    rotHandle.setAttribute('stroke', '#444');
+    rotHandle.setAttribute('stroke-width', '1.5');
+    rotHandle.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(rotHandle);
+
+    function repositionHandles(layer: TextLayer): void {
       try {
         const bbox = textEl.getBBox();
-        handle.setAttribute('cx', String(bbox.x + bbox.width));
-        handle.setAttribute('cy', String(bbox.y + bbox.height));
+        resizeHandle.setAttribute('cx', String(bbox.x + bbox.width));
+        resizeHandle.setAttribute('cy', String(bbox.y + bbox.height));
       } catch {
-        // ignore if not yet rendered
+        // not yet rendered
       }
+      // Rotation handle: offset above text center along the rotation axis
+      const rad = (layer.rotation * Math.PI) / 180;
+      const hx = layer.x - Math.sin(rad) * ROT_HANDLE_DIST;
+      const hy = layer.y - Math.cos(rad) * ROT_HANDLE_DIST;
+      rotHandle.setAttribute('cx', String(hx));
+      rotHandle.setAttribute('cy', String(hy));
+      rotLine.setAttribute('x1', String(layer.x));
+      rotLine.setAttribute('y1', String(layer.y));
+      rotLine.setAttribute('x2', String(hx));
+      rotLine.setAttribute('y2', String(hy));
     }
 
-    // Build an SVG gradient element from a PaletteColor and return it
     function buildGradient(
       color: Extract<PaletteColor, { kind: 'linear-gradient' | 'radial-gradient' }>,
     ): SVGLinearGradientElement | SVGRadialGradientElement {
@@ -120,7 +147,6 @@ export function renderCanvas(
       return g;
     }
 
-    // Position gradient coordinates to span the text bounding box
     function positionGradient(color: PaletteColor): void {
       if (!gradientEl) return;
       try {
@@ -155,7 +181,26 @@ export function renderCanvas(
       textEl.setAttribute('font-style', layer.italic && font.hasItalic ? 'italic' : 'normal');
       textEl.textContent = layer.text;
 
-      // Rebuild gradient definition if needed
+      // Rotation transform around the text's own center point
+      if (layer.rotation !== 0) {
+        textEl.setAttribute('transform', `rotate(${layer.rotation}, ${layer.x}, ${layer.y})`);
+      } else {
+        textEl.removeAttribute('transform');
+      }
+
+      // Outline
+      if (layer.outlineWidth > 0) {
+        textEl.setAttribute('stroke', layer.outlineColor);
+        textEl.setAttribute('stroke-width', String(layer.outlineWidth * UNITS_PER_INCH));
+        textEl.setAttribute('paint-order', 'stroke fill');
+        textEl.setAttribute('stroke-linejoin', 'round');
+      } else {
+        textEl.removeAttribute('stroke');
+        textEl.removeAttribute('stroke-width');
+        textEl.removeAttribute('paint-order');
+      }
+
+      // Color fill
       gradientEl?.remove();
       gradientEl = null;
 
@@ -178,15 +223,17 @@ export function renderCanvas(
       const paper = PAPER_SIZES[getPaperSizeIndex()];
       const pW = paper.widthIn * UNITS_PER_INCH;
       const pH = paper.heightIn * UNITS_PER_INCH;
-      const paperX = (viewBoxW - pW) / 2;
-      const paperY = viewBoxH * 0.15;
-      updateTextLayer({ x: paperX + pW / 2, y: paperY + pH / 2 });
+      updateTextLayer({
+        x: (viewBoxW - pW) / 2 + pW / 2,
+        y: viewBoxH * 0.15 + pH / 2,
+      });
     }
 
-    applyLayer(getTextLayer());
-    textEl.setAttribute('x', String(getTextLayer().x));
-    textEl.setAttribute('y', String(getTextLayer().y));
-    requestAnimationFrame(repositionHandle);
+    const currentLayer = getTextLayer();
+    applyLayer(currentLayer);
+    textEl.setAttribute('x', String(currentLayer.x));
+    textEl.setAttribute('y', String(currentLayer.y));
+    requestAnimationFrame(() => repositionHandles(getTextLayer()));
 
     setupDrag(
       svg,
@@ -197,9 +244,17 @@ export function renderCanvas(
 
     setupResizeHandle(
       svg,
-      handle,
+      resizeHandle,
       () => getTextLayer().sizeIn,
       (sizeIn) => updateTextLayer({ sizeIn }),
+    );
+
+    setupRotationHandle(
+      svg,
+      rotHandle,
+      () => ({ x: getTextLayer().x, y: getTextLayer().y }),
+      () => getTextLayer().rotation,
+      (rotation) => updateTextLayer({ rotation }),
     );
 
     unsubscribeLayer = onLayerChange((updated) => {
@@ -207,7 +262,7 @@ export function renderCanvas(
       textEl.setAttribute('x', String(updated.x));
       textEl.setAttribute('y', String(updated.y));
       requestAnimationFrame(() => {
-        repositionHandle();
+        repositionHandles(updated);
         positionGradient(updated.color);
       });
     });

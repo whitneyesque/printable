@@ -118,12 +118,21 @@ export function renderCanvas(
     svg.appendChild(rotHandle);
 
     function repositionHandles(layer: TextLayer): void {
-      try {
-        const bbox = textEl.getBBox();
-        resizeHandle.setAttribute('cx', String(bbox.x + bbox.width));
-        resizeHandle.setAttribute('cy', String(bbox.y + bbox.height));
-      } catch {
-        // not yet rendered
+      // getBBox is unreliable for textPath (curved) content — hide the resize handle
+      // when curved and only update it for straight text with a valid (non-zero) bbox.
+      if (layer.curve !== 0) {
+        resizeHandle.setAttribute('visibility', 'hidden');
+      } else {
+        resizeHandle.removeAttribute('visibility');
+        try {
+          const bbox = textEl.getBBox();
+          if (bbox.width > 0) {
+            resizeHandle.setAttribute('cx', String(bbox.x + bbox.width));
+            resizeHandle.setAttribute('cy', String(bbox.y + bbox.height));
+          }
+        } catch {
+          // not yet rendered
+        }
       }
       // Rotation handle: offset above text center along the rotation axis
       const rad = (layer.rotation * Math.PI) / 180;
@@ -185,20 +194,31 @@ export function renderCanvas(
       const cx = layer.x;
       const cy = layer.y;
       // SVG text baseline sits ON the arc; characters extend upward (-y) from the baseline.
-      // Without compensation the text visually floats above layer.y.
-      // Shift the arc down by half the font height so the visual center stays at layer.y.
+      // halfFontH shifts the arc so the visual text center stays at layer.y.
+      //
+      // SVG Y-axis is DOWN, so sweep-flag=0 (CCW in spec) goes DOWNWARD on screen
+      // (from 9-o'clock to 3-o'clock via 6-o'clock = bottom of circle).
+      // sweep-flag=1 (CW in spec) goes UPWARD on screen (via 12-o'clock = top of circle).
+      //
+      // Upward arch (smile): text at the TOP of the circle → sweep=1.
+      //   Endpoints at equator: y = cy + halfFontH + R
+      //   Arc top: y = cy + halfFontH → visual center = cy ✓
+      //
+      // Downward arch (frown): text at the BOTTOM of the circle → sweep=0.
+      //   Endpoints at equator: y = cy + halfFontH - R
+      //   Arc bottom: y = cy + halfFontH → visual center = cy ✓
       const halfFontH = (layer.sizeIn * UNITS_PER_INCH) / 2;
       if (layer.curve > 0) {
-        // Upward arch: arc top at cy + halfFontH, so text center lands at cy
+        // Upward arch — sweep=1 sends the arc through the circle's top
         arcPathEl.setAttribute(
           'd',
-          `M ${cx - R},${cy + halfFontH + R} A ${R},${R} 0 0,0 ${cx + R},${cy + halfFontH + R}`,
+          `M ${cx - R},${cy + halfFontH + R} A ${R},${R} 0 0,1 ${cx + R},${cy + halfFontH + R}`,
         );
       } else {
-        // Downward arch: arc bottom at cy + halfFontH, so text center lands at cy
+        // Downward arch — sweep=0 sends the arc through the circle's bottom
         arcPathEl.setAttribute(
           'd',
-          `M ${cx - R},${cy + halfFontH - R} A ${R},${R} 0 0,1 ${cx + R},${cy + halfFontH - R}`,
+          `M ${cx - R},${cy + halfFontH - R} A ${R},${R} 0 0,0 ${cx + R},${cy + halfFontH - R}`,
         );
       }
     }
